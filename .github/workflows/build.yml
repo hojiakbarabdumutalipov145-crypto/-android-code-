@@ -1,0 +1,46 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: unzip -q AndroidCode.zip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        working-directory: AndroidCode
+        run: gradle assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: cp AndroidCode/app/build/outputs/apk/debug/app-debug.apk AndroidCode.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AndroidCode
+          path: AndroidCode.apk
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.2-build${{ github.run_number }}"
+          gh release create "$TAG" AndroidCode.apk --title "Android code $TAG" --notes "Avtomatik yig'ilgan APK" --latest
